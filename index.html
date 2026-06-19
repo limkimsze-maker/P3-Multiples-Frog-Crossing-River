@@ -301,13 +301,13 @@
   <canvas id="game"></canvas>
 
   <div id="hud">
-    <div id="question" class="glass">Question: Multiples of 4</div>
+    <div id="question" class="glass">Mission 1/11: Multiples of 2</div>
     <div id="stats" class="glass">Lives 🐸🐸🐸<br>Score 0 · Flies 0/5</div>
   </div>
 
   <div id="topButtons">
     <button class="miniBtn" id="muteBtn">🔊 Sound</button>
-    <button class="miniBtn" id="teacherBtn">⚙ Teacher</button>
+    <button class="miniBtn" id="teacherBtn">⚙ Settings</button>
   </div>
 
   <div id="toast" class="glass"></div>
@@ -324,15 +324,52 @@
     <div id="panel" class="glass">
       <h1 id="screenTitle">🐸 Frog Ninja River Mission</h1>
       <p class="subtitle" id="screenText">
-        Cross the river by jumping only on lotus leaves that show the correct multiples.
-        Collect golden flies and unlock the Rainbow Pond.
+        Adventure Mode goes step by step from Multiples of 2 to Multiples of 12.
+        Teacher Mode lets you focus on one multiple without mixed multiples.
       </p>
 
       <div class="settings">
         <div class="settingBox">
-          <label class="title">Teacher Mode: choose the multiples</label>
-          <div class="checks" id="multipleChecks"></div>
-          <div class="tip">Default starts with “Multiples of 4”. Select more than one for mixed practice.</div>
+          <label class="title">Mode</label>
+          <div class="pillSelect">
+            <label><input type="radio" name="gameMode" value="adventure" checked> Adventure</label>
+            <label><input type="radio" name="gameMode" value="teacher"> Teacher</label>
+          </div>
+          <div class="tip" style="font-size:16px;margin-top:10px" id="modeExplain">
+            Adventure: pupils progress in order from <b>2 → 12</b>. No mixed multiples.
+          </div>
+        </div>
+
+        <div class="settingBox" id="teacherOptions" style="display:none">
+          <label class="title">Teacher Mode</label>
+          <div class="rowSettings">
+            <div>
+              <label class="title" for="teacherMultipleSelect">Focus multiple</label>
+              <select id="teacherMultipleSelect">
+                <option value="2">Multiples of 2</option>
+                <option value="3">Multiples of 3</option>
+                <option value="4" selected>Multiples of 4</option>
+                <option value="5">Multiples of 5</option>
+                <option value="6">Multiples of 6</option>
+                <option value="7">Multiples of 7</option>
+                <option value="8">Multiples of 8</option>
+                <option value="9">Multiples of 9</option>
+                <option value="10">Multiples of 10</option>
+                <option value="11">Multiples of 11</option>
+                <option value="12">Multiples of 12</option>
+              </select>
+            </div>
+            <div>
+              <label class="title" for="teacherCrossingsSelect">Crossings</label>
+              <select id="teacherCrossingsSelect">
+                <option value="3">3 crossings</option>
+                <option value="5" selected>5 crossings</option>
+                <option value="8">8 crossings</option>
+                <option value="10">10 crossings</option>
+              </select>
+            </div>
+          </div>
+          <div class="tip">Teacher Mode repeats one chosen multiple. It does not mix different multiples.</div>
         </div>
 
         <div class="rowSettings">
@@ -360,29 +397,23 @@
 
         <div class="rowSettings">
           <div class="settingBox">
-            <label class="title" for="missionSelect">Mission length</label>
-            <select id="missionSelect">
-              <option value="3">3 crossings</option>
-              <option value="5" selected>5 crossings</option>
-              <option value="8">8 crossings</option>
-              <option value="10">10 crossings</option>
-            </select>
+            <label class="title">Mission length</label>
+            <div class="tip" style="font-size:16px">
+              Adventure: 11 crossings from 2 to 12.<br>Teacher Mode: choose 3, 5, 8, or 10 crossings.
+            </div>
           </div>
 
           <div class="settingBox">
-            <label class="title">Display</label>
-            <select id="displaySelect">
-              <option selected>Auto-fit screen</option>
-            </select>
+            <label class="title">Challenge rule</label>
             <div class="tip">No answer glow is used. Pupils must identify the correct multiples themselves.</div>
           </div>
         </div>
       </div>
 
-      <button class="primary" id="startBtn">Start Mission</button>
+      <button class="primary" id="startBtn">Start Adventure</button>
       <button class="secondary" id="howBtn">How to Play</button>
       <p class="tip" id="howText" style="display:none">
-        Use arrow keys, WASD, or the right-side mobile buttons. Decide which numbers are correct multiples, then jump.
+        Use arrow keys, WASD, or the right-side mobile buttons. Adventure goes from multiples of 2 to 12. Teacher Mode repeats one selected multiple.
         ⭐ gives bonus points, 🛡 gives a shield, 🪰 gives 1 life, and ⏱ slows the river.
       </p>
     </div>
@@ -404,10 +435,12 @@
   const startBtn = document.getElementById("startBtn");
   const howBtn = document.getElementById("howBtn");
   const howText = document.getElementById("howText");
-  const multipleChecks = document.getElementById("multipleChecks");
   const speedSelect = document.getElementById("speedSelect");
   const livesSelect = document.getElementById("livesSelect");
-  const missionSelect = document.getElementById("missionSelect");
+  const teacherOptions = document.getElementById("teacherOptions");
+  const teacherMultipleSelect = document.getElementById("teacherMultipleSelect");
+  const teacherCrossingsSelect = document.getElementById("teacherCrossingsSelect");
+  const modeExplain = document.getElementById("modeExplain");
   const muteBtn = document.getElementById("muteBtn");
   const teacherBtn = document.getElementById("teacherBtn");
 
@@ -424,10 +457,12 @@
   };
 
   let config = {
-    multiples:[4],
+    mode:"adventure",
+    multiples:[2,3,4,5,6,7,8,9,10,11,12],
+    teacherMultiple:4,
     speedFactor:1,
     lives:3,
-    mission:5,
+    mission:11,
     glow:false
   };
 
@@ -451,7 +486,8 @@
     splashes:[],
     fireflies:[],
     rainDrops:[],
-    selectedHistory:[]
+    selectedHistory:[],
+    recovering:false
   };
 
   let rows = [];
@@ -460,12 +496,6 @@
   let last = 0;
   let audioCtx = null;
   let muted = false;
-
-  for(let n=2;n<=12;n++){
-    const lab = document.createElement("label");
-    lab.innerHTML = `<input type="checkbox" value="${n}" ${n===4?"checked":""}> ${n}`;
-    multipleChecks.appendChild(lab);
-  }
 
   function resize(){
     const rect = wrap.getBoundingClientRect();
@@ -502,31 +532,41 @@
   }
 
   function applySettings(){
-    const checked = [...multipleChecks.querySelectorAll("input:checked")].map(x=>Number(x.value));
-    config.multiples = checked.length ? checked : [4];
-    if(!checked.length) {
-      const four = multipleChecks.querySelector('input[value="4"]');
-      if(four) four.checked = true;
-    }
+    config.mode = document.querySelector('input[name="gameMode"]:checked').value;
     config.speedFactor = Number(speedSelect.value);
     config.lives = Number(livesSelect.value);
-    config.mission = Number(missionSelect.value);
     config.glow = false;
+
+    if(config.mode === "teacher"){
+      config.teacherMultiple = Number(teacherMultipleSelect.value);
+      config.multiples = [config.teacherMultiple];
+      config.mission = Number(teacherCrossingsSelect.value);
+    } else {
+      config.teacherMultiple = 4;
+      config.multiples = [2,3,4,5,6,7,8,9,10,11,12];
+      config.mission = 11;
+    }
   }
 
   function chooseTarget(){
-    if(game.round === 1 && config.multiples.includes(4)) return 4;
-    if(config.multiples.length === 1) return config.multiples[0];
-    let choices = config.multiples.filter(x => x !== game.target);
-    return choices[Math.floor(Math.random()*choices.length)];
+    if(config.mode === "teacher") return config.teacherMultiple;
+    // Sequential Adventure Mode: Multiples of 2, then 3, ... up to 12.
+    return 2 + game.crossings;
   }
 
   function chooseTheme(){
-    const progress = game.crossings / Math.max(1, config.mission - 1);
-    let idx = Math.min(4, Math.floor(progress * 5));
-    if(game.crossings === config.mission - 1) idx = 4;
-    const keys = ["sunny","rainy","night","croc","boss"];
-    game.themeKey = keys[idx];
+    // Crocodiles appear earlier so pupils actually see the promised hazard.
+    if(game.crossings <= 0){
+      game.themeKey = "sunny";
+    } else if(game.crossings === 1){
+      game.themeKey = "croc";
+    } else if(game.crossings === 2){
+      game.themeKey = "rainy";
+    } else if(game.crossings === 3){
+      game.themeKey = "night";
+    } else {
+      game.themeKey = game.crossings >= config.mission - 1 ? "boss" : "croc";
+    }
   }
 
   function makeNumber(correct){
@@ -589,15 +629,18 @@
       }
 
       const crocs = [];
-      if(themes[game.themeKey].crocs && lane%2 === 1){
-        crocs.push({
-          x: Math.random()*W,
-          y: y + (Math.random()-.5)*10,
-          w: Math.max(86, W*.1),
-          h: Math.max(30, W*.035),
-          speed: speed * .78,
-          blink: Math.random()*1000
-        });
+      if(themes[game.themeKey].crocs){
+        const crocCount = game.themeKey === "boss" ? 2 : (lane % 2 === 0 ? 1 : 0);
+        for(let c=0; c<crocCount; c++){
+          crocs.push({
+            x: Math.random()*W + c*W*.45,
+            y: y + (Math.random()-.5)*8,
+            w: Math.max(112, Math.min(165, W*.15)),
+            h: Math.max(38, Math.min(58, W*.052)),
+            speed: speed * (0.58 + Math.random()*.18),
+            blink: Math.random()*1000
+          });
+        }
       }
 
       rows.push({lane,y,speed,gap,leaves,crocs});
@@ -633,12 +676,13 @@
     game.score = 0;
     game.crossings = 0;
     game.round = 1;
-    game.target = 4;
+    game.target = 2;
     game.streak = 0;
     game.shield = false;
     game.slowTimer = 0;
     game.confetti = [];
     game.splashes = [];
+    game.recovering = false;
     screen.style.display = "none";
     startRound(true);
     updateStats();
@@ -647,8 +691,10 @@
 
   function startRound(first=false){
     chooseTheme();
-    game.target = first && config.multiples.includes(4) ? 4 : chooseTarget();
-    questionEl.textContent = `Mission ${game.crossings+1}/${config.mission}: Multiples of ${game.target}`;
+    game.target = chooseTarget();
+    const label = config.mode === "teacher" ? "Teacher Mission" : "Mission";
+    questionEl.textContent = `${label} ${game.crossings+1}/${config.mission}: Multiples of ${game.target}`;
+    game.recovering = false;
     resetFrog();
     buildRows();
     showToast(`${themeNames[["sunny","rainy","night","croc","boss"].indexOf(game.themeKey)]}<br>Step on multiples of ${game.target}!`, 1300);
@@ -659,7 +705,7 @@
     const hearts = "🐸".repeat(game.lives) + "♡".repeat(Math.max(0, game.maxLives-game.lives));
     const shield = game.shield ? " · 🛡 Shield" : "";
     const slow = game.slowTimer>0 ? ` · ⏱ ${Math.ceil(game.slowTimer/1000)}s` : "";
-    statsEl.innerHTML = `Lives ${hearts}<br>Score ${game.score} · Flies 🪰 ${game.crossings}/${config.mission}<br>Streak ${game.streak}${shield}${slow}`;
+    statsEl.innerHTML = `Lives ${hearts}<br>Score ${game.score} · Stage ${game.crossings}/${config.mission}<br>Streak ${game.streak}${shield}${slow}`;
   }
 
   function showToast(txt, ms=1000){
@@ -719,16 +765,25 @@
   }
 
   function loseLife(reason, options={}){
-    if(!game.started || frog.invuln > 0 || jumping) return;
+    // Recovery lock prevents repeated penalties/freezes when the player stops abruptly
+    // or when the frog is briefly between leaves.
+    if(!game.started || game.recovering || frog.invuln > 0 || jumping) return;
+
+    game.recovering = true;
+    frog.invuln = 900;
+    frog.attached = null;
 
     if(game.shield){
       game.shield = false;
       game.streak = 0;
-      showToast(`🛡 Shield saved you!<br>${reason}`, 1100);
+      showToast(`🛡 Shield saved you!<br>${reason}`, 1000);
       splash(frog.x,frog.y,false);
       playShield();
-      resetFrog();
-      frog.invuln = 650;
+      setTimeout(() => {
+        resetFrog();
+        frog.invuln = 500;
+        game.recovering = false;
+      }, 280);
       updateStats();
       return;
     }
@@ -738,16 +793,20 @@
     game.shakeTimer = 350;
     splash(frog.x,frog.y,true);
     playWrong();
-    showToast(reason, 1150);
+    showToast(reason, 1050);
     updateStats();
 
     if(game.lives <= 0){
-      setTimeout(() => endGame(false), 650);
+      setTimeout(() => {
+        game.recovering = false;
+        endGame(false);
+      }, 650);
     } else {
       setTimeout(() => {
         resetFrog();
         frog.invuln = 550;
-      }, 350);
+        game.recovering = false;
+      }, 360);
     }
   }
 
@@ -761,7 +820,8 @@
     if(game.crossings >= config.mission){
       setTimeout(() => endGame(true), 900);
     } else {
-      showToast("🪰 Golden fly collected!<br>New question coming!", 1200);
+      const nextText = config.mode === "teacher" ? `Again: Multiples of ${config.teacherMultiple}` : `Next: Multiples of ${2 + game.crossings}`;
+      showToast(`🪰 Golden fly collected!<br>${nextText}`, 1200);
       setTimeout(() => {
         if(game.started) {
           game.round++;
@@ -777,7 +837,10 @@
     howText.style.display = "none";
     if(won){
       screenTitle.textContent = "🌈 Rainbow Pond Unlocked!";
-      screenText.innerHTML = `Mission complete! You collected <b>${game.crossings}/${config.mission}</b> golden flies and scored <b>${game.score}</b> points.`;
+      const doneText = config.mode === "teacher"
+        ? `Mission complete! You practised <b>Multiples of ${config.teacherMultiple}</b>, collected <b>${game.crossings}/${config.mission}</b> golden flies, and scored <b>${game.score}</b> points.`
+        : `Mission complete! You cleared Multiples of <b>2 to 12</b>, collected <b>${game.crossings}/${config.mission}</b> golden flies, and scored <b>${game.score}</b> points.`;
+      screenText.innerHTML = doneText;
       startBtn.textContent = "Play Again";
       confettiBurst(W/2,H*.45,100);
       playVictory();
@@ -800,7 +863,7 @@
   }
 
   function moveFrog(dx,dy){
-    if(!game.started || game.paused || jumping || game.lives<=0) return;
+    if(!game.started || game.paused || game.recovering || jumping || game.lives<=0) return;
 
     let nextLane = frog.lane + dy;
     if(nextLane < -1) nextLane = -1;
@@ -901,7 +964,7 @@
       }
     }
 
-    if(!jumping && game.started && frog.lane>=0 && frog.lane<laneCount){
+    if(!game.recovering && !jumping && game.started && frog.lane>=0 && frog.lane<laneCount){
       if(frog.attached && frog.attached.sink <= 0){
         const row = rows[frog.lane];
         frog.x += row.speed * speedMod * dt/1000;
@@ -919,10 +982,12 @@
       }
     }
 
-    for(const row of rows){
-      for(const croc of row.crocs){
-        if(frog.lane === row.lane && Math.abs(frog.x-croc.x)<croc.w*.45 && Math.abs(frog.y-croc.y)<croc.h*.9){
-          loseLife("Cute croc bump! Try another leaf.");
+    if(!game.recovering){
+      for(const row of rows){
+        for(const croc of row.crocs){
+          if(frog.lane === row.lane && Math.abs(frog.x-croc.x)<croc.w*.45 && Math.abs(frog.y-croc.y)<croc.h*.9){
+            loseLife("Cute croc bump! Try another leaf.");
+          }
         }
       }
     }
@@ -1033,6 +1098,17 @@
     drawSign(W*.04,H*.073,"FINISH");
     drawSign(W*.04,H*.89,"START");
 
+    if(th.crocs){
+      ctx.fillStyle = "rgba(255,255,255,.82)";
+      roundRect(ctx, W*.58, H*.87, Math.min(250,W*.38), 38, 19);
+      ctx.fill();
+      ctx.fillStyle = "#173";
+      ctx.font = `950 ${Math.max(14,W*.018)}px system-ui`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("🐊 Crocodile River!", W*.58 + Math.min(250,W*.38)/2, H*.87 + 19);
+    }
+
     if(th.night) drawFireflies();
     if(th.rain) drawRain();
   }
@@ -1137,6 +1213,10 @@
 
     ctx.fillStyle = "rgba(0,0,0,.15)";
     ctx.beginPath(); ctx.ellipse(0,11,croc.w*.52,croc.h*.32,0,0,Math.PI*2); ctx.fill();
+
+    ctx.strokeStyle = "rgba(255,255,255,.82)";
+    ctx.lineWidth = 4;
+    roundRect(ctx,-croc.w*.5,-croc.h*.39,croc.w*.88,croc.h*.78,18); ctx.stroke();
 
     ctx.fillStyle = "#2f9a4a";
     roundRect(ctx,-croc.w*.48,-croc.h*.35,croc.w*.84,croc.h*.7,16); ctx.fill();
@@ -1370,9 +1450,28 @@
   function bindButton(id,dx,dy){
     const el = document.getElementById(id);
     const act = e => { e.preventDefault(); audioUnlock(); moveFrog(dx,dy); };
+    // Pointer events cover mouse, pen, and touch. Avoid adding touchstart too,
+    // because some browsers fire both and can cause abrupt double-move states.
     el.addEventListener("pointerdown",act);
-    el.addEventListener("touchstart",act,{passive:false});
   }
+
+  function refreshModeUI(){
+    const mode = document.querySelector('input[name="gameMode"]:checked').value;
+    if(mode === "teacher"){
+      teacherOptions.style.display = "block";
+      modeExplain.innerHTML = "Teacher: practise one chosen multiple only. No mixed multiples.";
+      startBtn.textContent = "Start Teacher Mission";
+    } else {
+      teacherOptions.style.display = "none";
+      modeExplain.innerHTML = "Adventure: pupils progress in order from <b>2 → 12</b>. No mixed multiples.";
+      startBtn.textContent = "Start Adventure";
+    }
+  }
+
+  document.querySelectorAll('input[name="gameMode"]').forEach(radio => {
+    radio.addEventListener("change", refreshModeUI);
+  });
+  refreshModeUI();
 
   startBtn.addEventListener("click", startGame);
   howBtn.addEventListener("click", () => {
@@ -1386,9 +1485,9 @@
   teacherBtn.addEventListener("click", () => {
     game.started = false;
     screen.style.display = "grid";
-    screenTitle.textContent = "⚙ Teacher Mode";
-    screenText.innerHTML = "Adjust the practice settings, then restart the mission.";
-    startBtn.textContent = "Start Mission";
+    screenTitle.textContent = "⚙ Settings";
+    screenText.innerHTML = "Choose Adventure Mode or Teacher Mode, then adjust speed and lives.";
+    refreshModeUI();
   });
 
   window.addEventListener("resize", resize);
