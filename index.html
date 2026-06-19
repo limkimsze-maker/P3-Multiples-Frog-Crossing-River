@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Frog Ninja River Mission</title>
+<style>
+  :root{
+    --panel: rgba(255,255,255,.92);
+    --ink:#102033;
+    --green:#11934d;
+    --dark:#0b3050;
+    --gold:#ffd44f;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
+  body{
+    margin:0;
+    min-height:100vh;
+    display:grid;
+    place-items:center;
+    overflow:hidden;
+    color:var(--ink);
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    background:linear-gradient(#dfffea,#b7efff);
+  }
+  #wrap{
+    position:relative;
+    width:min(100vw,1000px);
+    height:min(100vh,740px);
+    overflow:hidden;
+    border-radius:20px;
+    box-shadow:0 18px 45px rgba(0,0,0,.22);
+    background:#8fe47a;
+  }
+  canvas{width:100%;height:100%;display:block}
+  .glass{
+    background:var(--panel);
+    border:2px solid rgba(255,255,255,.85);
+    box-shadow:0 8px 20px rgba(0,0,0,.14);
+    backdrop-filter:blur(8px);
+  }
+  #hud{
+    position:absolute;
+    z-index:5;
+    left:10px;right:10px;top:10px;
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:8px;
+    pointer-events:none;
+  }
+  #question{
+    border-radius:16px;
+    padding:8px 12px;
+    text-align:center;
+    font-weight:950;
+    font-size:clamp(18px,3.8vw,31px);
+    line-height:1.15;
+  }
+  #stats{
+    border-radius:16px;
+    padding:8px 12px;
+    min-width:210px;
+    font-weight:850;
+    text-align:right;
+    font-size:clamp(13px,2.25vw,18px);
+    line-height:1.25;
+  }
+  #topButtons{
+    position:absolute;
+    top:92px;
+    right:10px;
+    z-index:6;
+    display:flex;
+    gap:6px;
+  }
+  .miniBtn{
+    pointer-events:auto;
+    border:0;
+    border-radius:999px;
+    background:rgba(255,255,255,.88);
+    color:#123;
+    font-weight:900;
+    padding:8px 11px;
+    box-shadow:0 3px 8px rgba(0,0,0,.14);
+    cursor:pointer;
+  }
+  #toast{
+    position:absolute;
+    z-index:8;
+    left:50%;
+    top:18%;
+    transform:translateX(-50%);
+    display:none;
+    max-width:88%;
+    border-radius:20px;
+    padding:14px 20px;
+    text-align:center;
+    font-size:clamp(18px,4vw,34px);
+    font-weight:950;
+  }
+  #combo{
+    position:absolute;
+    z-index:7;
+    left:50%;
+    top:32%;
+    transform:translate(-50%,-50%) scale(.8);
+    opacity:0;
+    font-size:clamp(26px,6vw,58px);
+    font-weight:1000;
+    color:#fff;
+    text-shadow:0 3px 0 #0b5,0 7px 18px rgba(0,0,0,.35);
+    pointer-events:none;
+  }
+  #controls{
+    position:absolute;
+    z-index:6;
+    left:50%;
+    bottom:12px;
+    transform:translateX(-50%);
+    display:grid;
+    grid-template-columns:64px 64px 64px;
+    grid-template-rows:56px 56px;
+    gap:7px;
+    opacity:.92;
+  }
+  .ctrl{
+    border-radius:17px;
+    background:rgba(255,255,255,.85);
+    border:2px solid rgba(0,0,0,.12);
+    display:grid;
+    place-items:center;
+    font-size:26px;
+    font-weight:950;
+    box-shadow:0 5px 12px rgba(0,0,0,.16);
+  }
+  #up{grid-column:2;grid-row:1}
+  #left{grid-column:1;grid-row:2}
+  #down{grid-column:2;grid-row:2}
+  #right{grid-column:3;grid-row:2}
+  @media (min-width:760px){#controls{display:none}}
+  @media (max-height:600px){
+    #hud{top:6px;left:6px;right:6px}
+    #stats{min-width:160px}
+    #topButtons{top:74px;right:6px}
+    #controls{bottom:6px;grid-template-columns:52px 52px 52px;grid-template-rows:46px 46px}
+  }
+  #screen{
+    position:absolute;
+    z-index:20;
+    inset:0;
+    display:grid;
+    place-items:center;
+    padding:16px;
+    background:
+      radial-gradient(circle at 22% 12%,rgba(255,255,255,.55),transparent 25%),
+      radial-gradient(circle at 80% 24%,rgba(255,230,95,.35),transparent 20%),
+      linear-gradient(#cdfcea,#5ac8eb 52%,#86d86e);
+  }
+  #panel{
+    width:min(760px,96vw);
+    max-height:96vh;
+    overflow:auto;
+    border-radius:26px;
+    padding:20px;
+    text-align:center;
+  }
+  #panel h1{
+    margin:2px 0 6px;
+    font-size:clamp(30px,7vw,58px);
+    line-height:1;
+  }
+  #panel .subtitle{
+    margin:5px auto 12px;
+    max-width:660px;
+    font-size:clamp(15px,3.2vw,20px);
+    line-height:1.35;
+  }
+  .settings{
+    display:grid;
+    gap:10px;
+    margin:12px 0;
+    text-align:left;
+  }
+  .settingBox{
+    border-radius:18px;
+    background:rgba(255,255,255,.72);
+    border:1px solid rgba(0,0,0,.07);
+    padding:12px;
+  }
+  .settingBox label.title{
+    display:block;
+    font-weight:950;
+    margin-bottom:8px;
+  }
+  .checks{
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    gap:7px;
+  }
+  .checks label,.pillSelect label{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    min-height:38px;
+    border-radius:999px;
+    background:rgba(255,255,255,.88);
+    border:2px solid rgba(0,0,0,.08);
+    font-weight:900;
+    cursor:pointer;
+  }
+  .checks input,.pillSelect input{accent-color:#139b51}
+  .pillSelect{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:7px;
+  }
+  .rowSettings{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  select{
+    width:100%;
+    min-height:40px;
+    border-radius:12px;
+    border:2px solid rgba(0,0,0,.12);
+    font-weight:850;
+    padding:6px 10px;
+    background:white;
+    font-size:16px;
+  }
+  .primary{
+    border:0;
+    border-radius:999px;
+    background:#139b51;
+    color:#fff;
+    font-weight:1000;
+    font-size:clamp(18px,3.5vw,23px);
+    padding:13px 24px;
+    margin:8px 6px 0;
+    box-shadow:0 7px 0 #0b6e39;
+    cursor:pointer;
+  }
+  .primary:active{transform:translateY(5px);box-shadow:0 2px 0 #0b6e39}
+  .secondary{
+    border:0;
+    border-radius:999px;
+    background:#fff;
+    color:#143;
+    font-weight:950;
+    font-size:16px;
+    padding:11px 18px;
+    margin:8px 6px 0;
+    box-shadow:0 4px 0 rgba(0,0,0,.14);
+    cursor:pointer;
+  }
+  .tip{
+    font-size:14px;
+    line-height:1.3;
+    opacity:.82;
+    margin-top:8px;
+  }
+  @media(max-width:570px){
+    #hud{grid-template-columns:1fr}
+    #stats{text-align:center;min-width:0}
+    #topButtons{top:126px}
+    .checks{grid-template-columns:repeat(4,1fr)}
+    .pillSelect{grid-template-columns:repeat(2,1fr)}
+    .rowSettings{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game"></canvas>
+
+  <div id="hud">
+    <div id="question" class="glass">Question: Multiples of 4</div>
+    <div id="stats" class="glass">Lives 🐸🐸🐸<br>Score 0 · Flies 0/5</div>
+  </div>
+
+  <div id="topButtons">
+    <button class="miniBtn" id="muteBtn">🔊 Sound</button>
+    <button class="miniBtn" id="teacherBtn">⚙ Teacher</button>
+  </div>
+
+  <div id="toast" class="glass"></div>
+  <div id="combo">NINJA COMBO!</div>
+
+  <div id="controls" aria-label="Touch controls">
+    <div id="up" class="ctrl">▲</div>
+    <div id="left" class="ctrl">◀</div>
+    <div id="down" class="ctrl">▼</div>
+    <div id="right" class="ctrl">▶</div>
+  </div>
+
+  <div id="screen">
+    <div id="panel" class="glass">
+      <h1 id="screenTitle">🐸 Frog Ninja River Mission</h1>
+      <p class="subtitle" id="screenText">
+        Cross the river by jumping only on lotus leaves that show the correct multiples.
+        Collect golden flies and unlock the Rainbow Pond.
+      </p>
+
+      <div class="settings">
+        <div class="settingBox">
+          <label class="title">Teacher Mode: choose the multiples</label>
+          <div class="checks" id="multipleChecks"></div>
+          <div class="tip">Default starts with “Multiples of 4”. Select more than one for mixed practice.</div>
+        </div>
+
+        <div class="rowSettings">
+          <div class="settingBox">
+            <label class="title" for="speedSelect">River speed</label>
+            <select id="speedSelect">
+              <option value="0.72">Easy</option>
+              <option value="1" selected>Normal</option>
+              <option value="1.28">Fast</option>
+              <option value="1.55">Ninja</option>
+            </select>
+          </div>
+
+          <div class="settingBox">
+            <label class="title" for="livesSelect">Lives</label>
+            <select id="livesSelect">
+              <option value="1">1 life</option>
+              <option value="2">2 lives</option>
+              <option value="3" selected>3 lives</option>
+              <option value="4">4 lives</option>
+              <option value="5">5 lives</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="rowSettings">
+          <div class="settingBox">
+            <label class="title" for="missionSelect">Mission length</label>
+            <select id="missionSelect">
+              <option value="3">3 crossings</option>
+              <option value="5" selected>5 crossings</option>
+              <option value="8">8 crossings</option>
+              <option value="10">10 crossings</option>
+            </select>
+          </div>
+
+          <div class="settingBox">
+            <label class="title">Help level</label>
+            <div class="pillSelect">
+              <label><input type="radio" name="glow" value="on" checked> Glow</label>
+              <label><input type="radio" name="glow" value="off"> Boss style</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="primary" id="startBtn">Start Mission</button>
+      <button class="secondary" id="howBtn">How to Play</button>
+      <p class="tip" id="howText" style="display:none">
+        Use arrow keys, WASD, or the mobile buttons. Wait for a correct lotus leaf to float near the frog, then jump.
+        ⭐ gives bonus points, 🛡 gives a shield, 🪰 gives 1 life, and ⏱ slows the river.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const wrap = document.getElementById("wrap");
+  const questionEl = document.getElementById("question");
+  const statsEl = document.getElementById("stats");
+  const toast = document.getElementById("toast");
+  const comboEl = document.getElementById("combo");
+  const screen = document.getElementById("screen");
+  const screenTitle = document.getElementById("screenTitle");
+  const screenText = document.getElementById("screenText");
+  const startBtn = document.getElementById("startBtn");
+  const howBtn = document.getElementById("howBtn");
+  const howText = document.getElementById("howText");
+  const multipleChecks = document.getElementById("multipleChecks");
+  const speedSelect = document.getElementById("speedSelect");
+  const livesSelect = document.getElementById("livesSelect");
+  const missionSelect = document.getElementById("missionSelect");
+  const muteBtn = document.getElementById("muteBtn");
+  const teacherBtn = document.getElementById("teacherBtn");
+
+  let W=900,H=650,dpr=1;
+  const laneCount = 5;
+  const powerIcons = { star:"⭐", shield:"🛡", fly:"🪰", slow:"⏱" };
+  const themeNames = ["Sunny River","Rainy River","Night Firefly River","Crocodile River","Boss River"];
+  let themes = {
+    sunny:{sky1:"#dfffea",sky2:"#a8edff",bank:"#8fdf73",bank2:"#76ca61",river1:"#5bcaf0",river2:"#1683bf",wave:"#fff",rain:false,night:false,crocs:false,boss:false},
+    rainy:{sky1:"#b7d8e8",sky2:"#78b9d4",bank:"#75c66b",bank2:"#64b45b",river1:"#49b6dd",river2:"#1279ae",wave:"#dff7ff",rain:true,night:false,crocs:false,boss:false},
+    night:{sky1:"#122850",sky2:"#255d7e",bank:"#497d4c",bank2:"#386f41",river1:"#2b8ac4",river2:"#0d457f",wave:"#bff1ff",rain:false,night:true,crocs:false,boss:false},
+    croc:{sky1:"#b8f4d0",sky2:"#60bddf",bank:"#80d56b",bank2:"#65b957",river1:"#48b9dc",river2:"#136f9f",wave:"#ecffff",rain:false,night:false,crocs:true,boss:false},
+    boss:{sky1:"#4b2c72",sky2:"#1b5b78",bank:"#566d39",bank2:"#445f32",river1:"#2568ad",river2:"#0a2d61",wave:"#d7fdff",rain:true,night:true,crocs:true,boss:true}
+  };
+
+  let config = {
+    multiples:[4],
+    speedFactor:1,
+    lives:3,
+    mission:5,
+    glow:true
+  };
+
+  let game = {
+    started:false,
+    paused:false,
+    lives:3,
+    maxLives:3,
+    score:0,
+    crossings:0,
+    round:1,
+    target:4,
+    streak:0,
+    shield:false,
+    slowTimer:0,
+    themeKey:"sunny",
+    messageTimer:0,
+    comboTimer:0,
+    shakeTimer:0,
+    confetti:[],
+    splashes:[],
+    fireflies:[],
+    rainDrops:[],
+    selectedHistory:[]
+  };
+
+  let rows = [];
+  let frog = {};
+  let jumping = false;
+  let last = 0;
+  let audioCtx = null;
+  let muted = false;
+
+  for(let n=2;n<=12;n++){
+    const lab = document.createElement("label");
+    lab.innerHTML = `<input type="checkbox" value="${n}" ${n===4?"checked":""}> ${n}`;
+    multipleChecks.appendChild(lab);
+  }
+
+  function resize(){
+    const rect = wrap.getBoundingClientRect();
+    W = Math.max(320, Math.floor(rect.width));
+    H = Math.max(430, Math.floor(rect.height));
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.floor(W*dpr);
+    canvas.height = Math.floor(H*dpr);
+    canvas.style.width = W+"px";
+    canvas.style.height = H+"px";
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    resetFrog();
+    if(game.started) buildRows();
+    makeAtmosphere();
+  }
+
+  function riverTop(){ return H*0.145; }
+  function riverBottom(){ return H*0.86; }
+  function laneH(){ return (riverBottom()-riverTop())/laneCount; }
+  function leafR(){ return Math.max(31, Math.min(48, W*.046)); }
+  function frogR(){ return Math.max(21, Math.min(34, W*.034)); }
+  function laneY(lane){
+    if(lane < 0) return H*.925;
+    if(lane >= laneCount) return H*.075;
+    return riverBottom() - laneH()*(lane+.5);
+  }
+
+  function resetFrog(){
+    frog = {
+      x:W/2, y:H*.925, targetX:W/2, targetY:H*.925,
+      lane:-1, attached:null, face:0, invuln:0
+    };
+    jumping = false;
+  }
+
+  function applySettings(){
+    const checked = [...multipleChecks.querySelectorAll("input:checked")].map(x=>Number(x.value));
+    config.multiples = checked.length ? checked : [4];
+    if(!checked.length) {
+      const four = multipleChecks.querySelector('input[value="4"]');
+      if(four) four.checked = true;
+    }
+    config.speedFactor = Number(speedSelect.value);
+    config.lives = Number(livesSelect.value);
+    config.mission = Number(missionSelect.value);
+    config.glow = document.querySelector('input[name="glow"]:checked').value === "on";
+  }
+
+  function chooseTarget(){
+    if(game.round === 1 && config.multiples.includes(4)) return 4;
+    if(config.multiples.length === 1) return config.multiples[0];
+    let choices = config.multiples.filter(x => x !== game.target);
+    return choices[Math.floor(Math.random()*choices.length)];
+  }
+
+  function chooseTheme(){
+    const progress = game.crossings / Math.max(1, config.mission - 1);
+    let idx = Math.min(4, Math.floor(progress * 5));
+    if(game.crossings === config.mission - 1) idx = 4;
+    const keys = ["sunny","rainy","night","croc","boss"];
+    game.themeKey = keys[idx];
+  }
+
+  function makeNumber(correct){
+    if(correct){
+      const m = 1 + Math.floor(Math.random()*12);
+      return game.target * m;
+    }
+    let n = 1 + Math.floor(Math.random()*99);
+    let guard = 0;
+    while(n % game.target === 0 && guard < 80){
+      n = 1 + Math.floor(Math.random()*99);
+      guard++;
+    }
+    return n;
+  }
+
+  function buildRows(){
+    rows = [];
+    const r = leafR();
+    const baseGap = Math.max(r*3.1, W/4.5);
+    const bossBoost = game.themeKey === "boss" ? 1.18 : 1;
+    for(let lane=0; lane<laneCount; lane++){
+      const y = laneY(lane);
+      const dir = lane%2===0 ? 1 : -1;
+      const speed = dir * (30 + lane*9 + game.crossings*4) * config.speedFactor * bossBoost;
+      const gap = baseGap * (game.themeKey === "boss" ? .92 : 1);
+      const count = Math.ceil(W/gap)+4;
+      const offset = Math.random()*gap;
+      const leaves = [];
+      let correctCount = 0;
+
+      for(let j=-2; j<count; j++){
+        const correct = Math.random() < (game.themeKey==="boss" ? .42 : .52);
+        if(correct) correctCount++;
+        let power = null;
+        if(correct && Math.random()<.18){
+          const list = ["star","shield","fly","slow"];
+          power = list[Math.floor(Math.random()*list.length)];
+        }
+        leaves.push({
+          x:j*gap + offset,
+          y, r,
+          number:makeNumber(correct),
+          power,
+          usedPower:false,
+          wobble:Math.random()*Math.PI*2,
+          sink:0,
+          pulse:0,
+          correct
+        });
+      }
+
+      while(correctCount < 2){
+        const pick = leaves[Math.floor(Math.random()*leaves.length)];
+        if(!pick.correct){
+          pick.correct = true;
+          pick.number = makeNumber(true);
+          correctCount++;
+        }
+      }
+
+      const crocs = [];
+      if(themes[game.themeKey].crocs && lane%2 === 1){
+        crocs.push({
+          x: Math.random()*W,
+          y: y + (Math.random()-.5)*10,
+          w: Math.max(86, W*.1),
+          h: Math.max(30, W*.035),
+          speed: speed * .78,
+          blink: Math.random()*1000
+        });
+      }
+
+      rows.push({lane,y,speed,gap,leaves,crocs});
+    }
+  }
+
+  function makeAtmosphere(){
+    game.fireflies = [];
+    for(let i=0;i<34;i++){
+      game.fireflies.push({
+        x:Math.random()*W,y:Math.random()*H,
+        r:1.5+Math.random()*2,
+        phase:Math.random()*6.28
+      });
+    }
+    game.rainDrops = [];
+    for(let i=0;i<80;i++){
+      game.rainDrops.push({
+        x:Math.random()*W,y:Math.random()*H,
+        len:8+Math.random()*15,
+        speed:240+Math.random()*240
+      });
+    }
+  }
+
+  function startGame(){
+    applySettings();
+    audioUnlock();
+    game.started = true;
+    game.paused = false;
+    game.lives = config.lives;
+    game.maxLives = config.lives;
+    game.score = 0;
+    game.crossings = 0;
+    game.round = 1;
+    game.target = 4;
+    game.streak = 0;
+    game.shield = false;
+    game.slowTimer = 0;
+    game.confetti = [];
+    game.splashes = [];
+    screen.style.display = "none";
+    startRound(true);
+    updateStats();
+    playStart();
+  }
+
+  function startRound(first=false){
+    chooseTheme();
+    game.target = first && config.multiples.includes(4) ? 4 : chooseTarget();
+    questionEl.textContent = `Mission ${game.crossings+1}/${config.mission}: Multiples of ${game.target}`;
+    resetFrog();
+    buildRows();
+    showToast(`${themeNames[["sunny","rainy","night","croc","boss"].indexOf(game.themeKey)]}<br>Step on multiples of ${game.target}!`, 1300);
+    updateStats();
+  }
+
+  function updateStats(){
+    const hearts = "🐸".repeat(game.lives) + "♡".repeat(Math.max(0, game.maxLives-game.lives));
+    const shield = game.shield ? " · 🛡 Shield" : "";
+    const slow = game.slowTimer>0 ? ` · ⏱ ${Math.ceil(game.slowTimer/1000)}s` : "";
+    statsEl.innerHTML = `Lives ${hearts}<br>Score ${game.score} · Flies 🪰 ${game.crossings}/${config.mission}<br>Streak ${game.streak}${shield}${slow}`;
+  }
+
+  function showToast(txt, ms=1000){
+    toast.innerHTML = txt;
+    toast.style.display = "block";
+    game.messageTimer = ms;
+  }
+
+  function showCombo(txt){
+    comboEl.textContent = txt;
+    comboEl.style.opacity = 1;
+    comboEl.style.transform = "translate(-50%,-50%) scale(1)";
+    game.comboTimer = 800;
+  }
+
+  function correctLanding(leaf){
+    if(leaf.pulse <= 0) leaf.pulse = 500;
+    frog.attached = leaf;
+    game.score += 10;
+    game.streak += 1;
+    playCorrect();
+
+    if(leaf.power && !leaf.usedPower){
+      leaf.usedPower = true;
+      activatePower(leaf.power);
+      leaf.power = null;
+    }
+
+    if(game.streak > 0 && game.streak % 3 === 0){
+      game.score += 25;
+      showCombo(`⚡ ${game.streak}-Jump Combo!`);
+      playCombo();
+    }
+
+    updateStats();
+  }
+
+  function activatePower(power){
+    if(power === "star"){
+      game.score += 50;
+      showToast("⭐ Star bonus! +50", 800);
+      playPower();
+    } else if(power === "shield"){
+      game.shield = true;
+      showToast("🛡 Shield ready!", 850);
+      playPower();
+    } else if(power === "fly"){
+      game.lives = Math.min(5, game.lives + 1);
+      game.maxLives = Math.max(game.maxLives, game.lives);
+      showToast("🪰 Extra life!", 850);
+      playPower();
+    } else if(power === "slow"){
+      game.slowTimer = 6000;
+      showToast("⏱ Slow river!", 850);
+      playPower();
+    }
+  }
+
+  function loseLife(reason, options={}){
+    if(!game.started || frog.invuln > 0 || jumping) return;
+
+    if(game.shield){
+      game.shield = false;
+      game.streak = 0;
+      showToast(`🛡 Shield saved you!<br>${reason}`, 1100);
+      splash(frog.x,frog.y,false);
+      playShield();
+      resetFrog();
+      frog.invuln = 650;
+      updateStats();
+      return;
+    }
+
+    game.lives--;
+    game.streak = 0;
+    game.shakeTimer = 350;
+    splash(frog.x,frog.y,true);
+    playWrong();
+    showToast(reason, 1150);
+    updateStats();
+
+    if(game.lives <= 0){
+      setTimeout(() => endGame(false), 650);
+    } else {
+      setTimeout(() => {
+        resetFrog();
+        frog.invuln = 550;
+      }, 350);
+    }
+  }
+
+  function winCrossing(){
+    game.crossings++;
+    game.score += 100 + game.streak*5;
+    confettiBurst(W/2,H*.17,56);
+    playWin();
+    updateStats();
+
+    if(game.crossings >= config.mission){
+      setTimeout(() => endGame(true), 900);
+    } else {
+      showToast("🪰 Golden fly collected!<br>New question coming!", 1200);
+      setTimeout(() => {
+        if(game.started) {
+          game.round++;
+          startRound();
+        }
+      }, 950);
+    }
+  }
+
+  function endGame(won){
+    game.started = false;
+    screen.style.display = "grid";
+    howText.style.display = "none";
+    if(won){
+      screenTitle.textContent = "🌈 Rainbow Pond Unlocked!";
+      screenText.innerHTML = `Mission complete! You collected <b>${game.crossings}/${config.mission}</b> golden flies and scored <b>${game.score}</b> points.`;
+      startBtn.textContent = "Play Again";
+      confettiBurst(W/2,H*.45,100);
+      playVictory();
+    } else {
+      screenTitle.textContent = "🐸 Mission Retry";
+      screenText.innerHTML = `You collected <b>${game.crossings}/${config.mission}</b> golden flies and scored <b>${game.score}</b> points. Try again with the same settings or adjust Teacher Mode.`;
+      startBtn.textContent = "Restart Mission";
+    }
+  }
+
+  function getLeafAt(x,y){
+    for(const row of rows){
+      for(const leaf of row.leaves){
+        if(leaf.sink > 850) continue;
+        const dx=x-leaf.x, dy=y-(leaf.y + Math.sin(leaf.wobble)*3);
+        if(Math.hypot(dx,dy) <= leaf.r*.92) return leaf;
+      }
+    }
+    return null;
+  }
+
+  function moveFrog(dx,dy){
+    if(!game.started || game.paused || jumping || game.lives<=0) return;
+
+    let nextLane = frog.lane + dy;
+    if(nextLane < -1) nextLane = -1;
+    if(nextLane > laneCount) nextLane = laneCount;
+
+    let jumpDist = Math.max(74, W*.105);
+    let nextX = frog.x + dx*jumpDist;
+    nextX = Math.max(frogR(), Math.min(W-frogR(), nextX));
+
+    let nextY = laneY(nextLane);
+    frog.face = dx;
+    frog.targetX = nextX;
+    frog.targetY = nextY;
+
+    animateJump(() => {
+      frog.lane = nextLane;
+      if(nextLane >= laneCount){
+        winCrossing();
+        return;
+      }
+      if(nextLane < 0){
+        frog.attached = null;
+        return;
+      }
+
+      const leaf = getLeafAt(frog.x,frog.y);
+      if(!leaf){
+        loseLife("Splash! Land on a lotus leaf.");
+        return;
+      }
+
+      if(leaf.number % game.target !== 0){
+        leaf.sink = 1;
+        loseLife(`${leaf.number} is not a multiple of ${game.target}.`);
+        return;
+      }
+
+      correctLanding(leaf);
+    });
+  }
+
+  function animateJump(done){
+    jumping = true;
+    frog.attached = null;
+    const sx = frog.x, sy = frog.y;
+    const ex = frog.targetX, ey = frog.targetY;
+    const start = performance.now();
+    const dur = 245;
+
+    function step(now){
+      const t = Math.min(1,(now-start)/dur);
+      const ease = 1 - Math.pow(1-t,3);
+      frog.x = sx + (ex-sx)*ease;
+      frog.y = sy + (ey-sy)*ease - Math.sin(t*Math.PI)*30;
+      if(t<1){
+        requestAnimationFrame(step);
+      }else{
+        frog.x = ex; frog.y = ey;
+        jumping = false;
+        if(done) done();
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  function update(dt){
+    if(game.messageTimer>0){
+      game.messageTimer -= dt;
+      if(game.messageTimer<=0) toast.style.display = "none";
+    }
+    if(game.comboTimer>0){
+      game.comboTimer -= dt;
+      const p = game.comboTimer/800;
+      comboEl.style.opacity = Math.max(0,p);
+      comboEl.style.transform = `translate(-50%,-50%) scale(${1 + (1-p)*.28})`;
+    }
+    if(game.shakeTimer>0) game.shakeTimer -= dt;
+    if(frog.invuln>0) frog.invuln -= dt;
+    if(game.slowTimer>0) game.slowTimer -= dt;
+
+    const speedMod = game.slowTimer>0 ? .45 : 1;
+
+    for(const row of rows){
+      for(const leaf of row.leaves){
+        leaf.x += row.speed * speedMod * dt/1000;
+        leaf.wobble += dt/430;
+        if(leaf.pulse>0) leaf.pulse -= dt;
+        if(leaf.sink>0) leaf.sink += dt;
+        const span = row.gap * row.leaves.length;
+        if(row.speed>0 && leaf.x - leaf.r > W + row.gap) leaf.x -= span;
+        if(row.speed<0 && leaf.x + leaf.r < -row.gap) leaf.x += span;
+      }
+      for(const croc of row.crocs){
+        croc.x += croc.speed * speedMod * dt/1000;
+        croc.blink += dt;
+        if(croc.speed>0 && croc.x > W+160) croc.x = -160;
+        if(croc.speed<0 && croc.x < -160) croc.x = W+160;
+      }
+    }
+
+    if(!jumping && game.started && frog.lane>=0 && frog.lane<laneCount){
+      if(frog.attached && frog.attached.sink <= 0){
+        const row = rows[frog.lane];
+        frog.x += row.speed * speedMod * dt/1000;
+        frog.y = row.y + Math.sin(frog.attached.wobble)*3;
+        if(frog.x < -frogR() || frog.x > W+frogR()){
+          loseLife("Oh no! The leaf floated away.");
+        }
+      }else{
+        const leaf = getLeafAt(frog.x,frog.y);
+        if(!leaf){
+          loseLife("Splash! Stay on a lotus leaf.");
+        }else{
+          frog.attached = leaf;
+        }
+      }
+    }
+
+    for(const row of rows){
+      for(const croc of row.crocs){
+        if(frog.lane === row.lane && Math.abs(frog.x-croc.x)<croc.w*.45 && Math.abs(frog.y-croc.y)<croc.h*.9){
+          loseLife("Cute croc bump! Try another leaf.");
+        }
+      }
+    }
+
+    for(const s of game.splashes){
+      s.life -= dt;
+      for(const p of s.parts){
+        p.x += p.vx*dt/1000;
+        p.y += p.vy*dt/1000;
+        p.vy += 280*dt/1000;
+      }
+    }
+    game.splashes = game.splashes.filter(s=>s.life>0);
+
+    for(const c of game.confetti){
+      c.life -= dt;
+      c.x += c.vx*dt/1000;
+      c.y += c.vy*dt/1000;
+      c.vy += 260*dt/1000;
+      c.rot += c.spin*dt/1000;
+    }
+    game.confetti = game.confetti.filter(c=>c.life>0);
+
+    const th = themes[game.themeKey];
+    if(th.rain){
+      for(const r of game.rainDrops){
+        r.y += r.speed*dt/1000;
+        r.x -= r.speed*.22*dt/1000;
+        if(r.y>H+20){ r.y=-30; r.x=Math.random()*W; }
+        if(r.x<-30) r.x = W+30;
+      }
+    }
+    updateStats();
+  }
+
+  function draw(){
+    const th = themes[game.themeKey] || themes.sunny;
+    ctx.save();
+    if(game.shakeTimer>0){
+      const mag = 5*game.shakeTimer/350;
+      ctx.translate((Math.random()-.5)*mag, (Math.random()-.5)*mag);
+    }
+
+    drawBackground(th);
+    drawRows(th);
+    drawSplashes();
+    drawFrog();
+    drawConfetti();
+    ctx.restore();
+  }
+
+  function drawBackground(th){
+    const sky = ctx.createLinearGradient(0,0,0,H);
+    sky.addColorStop(0,th.sky1);
+    sky.addColorStop(.52,th.sky2);
+    sky.addColorStop(1,th.bank2);
+    ctx.fillStyle = sky;
+    ctx.fillRect(0,0,W,H);
+
+    // sun/moon
+    if(th.night){
+      ctx.fillStyle = "rgba(255,255,220,.9)";
+      ctx.beginPath(); ctx.arc(W*.82,H*.08,Math.max(18,W*.035),0,Math.PI*2); ctx.fill();
+    }else{
+      ctx.fillStyle = "rgba(255,225,80,.85)";
+      ctx.beginPath(); ctx.arc(W*.82,H*.09,Math.max(28,W*.045),0,Math.PI*2); ctx.fill();
+    }
+
+    // banks
+    ctx.fillStyle = th.bank;
+    ctx.fillRect(0,0,W,riverTop());
+    ctx.fillStyle = th.bank2;
+    ctx.fillRect(0,riverBottom(),W,H-riverBottom());
+
+    // river
+    const river = ctx.createLinearGradient(0,riverTop(),0,riverBottom());
+    river.addColorStop(0,th.river1);
+    river.addColorStop(1,th.river2);
+    ctx.fillStyle = river;
+    ctx.fillRect(0,riverTop(),W,riverBottom()-riverTop());
+
+    // waves
+    ctx.globalAlpha = th.night ? .23 : .32;
+    ctx.strokeStyle = th.wave;
+    ctx.lineWidth = 2;
+    for(let y=riverTop()+20;y<riverBottom();y+=32){
+      ctx.beginPath();
+      for(let x=-30;x<=W+30;x+=18){
+        const yy = y + Math.sin((x+performance.now()*.05)/32)*4;
+        if(x===-30)ctx.moveTo(x,yy); else ctx.lineTo(x,yy);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // lane guide faint
+    ctx.globalAlpha = .12;
+    ctx.strokeStyle = "#fff";
+    for(let i=1;i<laneCount;i++){
+      const y = riverBottom()-laneH()*i;
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    drawBankDetails(th);
+
+    // finish/start signs
+    drawSign(W*.04,H*.073,"FINISH");
+    drawSign(W*.04,H*.89,"START");
+
+    if(th.night) drawFireflies();
+    if(th.rain) drawRain();
+  }
+
+  function drawBankDetails(th){
+    for(let i=0;i<38;i++){
+      const x = (i*97+23)%W;
+      const y = i%2 ? riverBottom()+16+(i%5)*10 : riverTop()-14-(i%4)*10;
+      ctx.strokeStyle = th.night ? "#78ba73" : "#287d32";
+      ctx.lineWidth = 2;
+      for(let k=0;k<4;k++){
+        ctx.beginPath();
+        ctx.moveTo(x,y);
+        ctx.lineTo(x+(k-1.5)*5,y-12-(k%2)*6);
+        ctx.stroke();
+      }
+      if(i%7===0){
+        ctx.fillStyle = th.night ? "#ffe867" : "#ff6fb4";
+        ctx.beginPath(); ctx.arc(x+5,y-17,4,0,Math.PI*2); ctx.fill();
+      }
+    }
+  }
+
+  function drawSign(x,y,text){
+    ctx.fillStyle = "rgba(255,255,255,.78)";
+    roundRect(ctx,x,y,128,34,17); ctx.fill();
+    ctx.fillStyle = "#18324a";
+    ctx.font = `950 ${Math.max(14,W*.019)}px system-ui`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(text,x+64,y+17);
+  }
+
+  function drawRows(th){
+    for(const row of rows){
+      // crocodiles behind leaves
+      for(const croc of row.crocs) drawCroc(croc);
+      for(const leaf of row.leaves) drawLeaf(leaf, th);
+    }
+  }
+
+  function drawLeaf(leaf, th){
+    ctx.save();
+    const bobY = leaf.y + Math.sin(leaf.wobble)*3;
+    let sinkOffset = 0, alpha = 1;
+    if(leaf.sink>0){
+      sinkOffset = Math.min(42, leaf.sink/18);
+      alpha = Math.max(0,1-leaf.sink/900);
+    }
+    ctx.globalAlpha = alpha;
+    ctx.translate(leaf.x, bobY+sinkOffset);
+    ctx.rotate(Math.sin(leaf.wobble*.7)*.07);
+
+    if(config.glow && leaf.number % game.target === 0 && game.themeKey !== "boss"){
+      const pulse = .35 + Math.sin(performance.now()/280 + leaf.x*.01)*.2;
+      ctx.fillStyle = `rgba(255,235,94,${pulse})`;
+      ctx.beginPath(); ctx.ellipse(0,0,leaf.r*1.22,leaf.r*.86,0,0,Math.PI*2); ctx.fill();
+    }
+
+    if(leaf.pulse>0){
+      ctx.fillStyle = "rgba(255,255,255,.75)";
+      ctx.beginPath(); ctx.ellipse(0,0,leaf.r*1.28,leaf.r*.9,0,0,Math.PI*2); ctx.fill();
+    }
+
+    ctx.fillStyle = "rgba(0,0,0,.16)";
+    ctx.beginPath(); ctx.ellipse(4,7,leaf.r*1.03,leaf.r*.6,0,0,Math.PI*2); ctx.fill();
+
+    const grad = ctx.createRadialGradient(-leaf.r*.25,-leaf.r*.25,4,0,0,leaf.r);
+    grad.addColorStop(0,"#78f08d");
+    grad.addColorStop(1,"#228e48");
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.ellipse(0,0,leaf.r,leaf.r*.68,-.08,0,Math.PI*2); ctx.fill();
+
+    ctx.fillStyle = th.river1;
+    ctx.beginPath();
+    ctx.moveTo(leaf.r*.22,-2);
+    ctx.lineTo(leaf.r*.96,-leaf.r*.22);
+    ctx.lineTo(leaf.r*.95,leaf.r*.23);
+    ctx.closePath(); ctx.fill();
+
+    ctx.strokeStyle = "rgba(255,255,255,.33)";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-leaf.r*.65,0); ctx.lineTo(leaf.r*.45,0); ctx.stroke();
+
+    // power icon
+    if(leaf.power && !leaf.usedPower){
+      ctx.font = `${Math.max(17, leaf.r*.45)}px system-ui`;
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(powerIcons[leaf.power], leaf.r*.42, -leaf.r*.42);
+    }
+
+    // number
+    ctx.font = `950 ${Math.max(20, leaf.r*.7)}px system-ui`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = "rgba(0,0,0,.38)";
+    ctx.fillStyle = "#fff";
+    ctx.strokeText(String(leaf.number), -3, 1);
+    ctx.fillText(String(leaf.number), -3, 1);
+
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  function drawCroc(croc){
+    ctx.save();
+    ctx.translate(croc.x,croc.y);
+    if(croc.speed<0) ctx.scale(-1,1);
+
+    ctx.fillStyle = "rgba(0,0,0,.15)";
+    ctx.beginPath(); ctx.ellipse(0,11,croc.w*.52,croc.h*.32,0,0,Math.PI*2); ctx.fill();
+
+    ctx.fillStyle = "#2f9a4a";
+    roundRect(ctx,-croc.w*.48,-croc.h*.35,croc.w*.84,croc.h*.7,16); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(croc.w*.33,-croc.h*.26);
+    ctx.lineTo(croc.w*.58,0);
+    ctx.lineTo(croc.w*.33,croc.h*.26);
+    ctx.closePath(); ctx.fill();
+
+    ctx.fillStyle = "#e8fff0";
+    for(let i=0;i<4;i++){
+      ctx.beginPath();
+      ctx.moveTo(croc.w*.34+i*9,-5);
+      ctx.lineTo(croc.w*.4+i*9,0);
+      ctx.lineTo(croc.w*.34+i*9,5);
+      ctx.closePath(); ctx.fill();
+    }
+
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(-croc.w*.22,-croc.h*.28,7,0,Math.PI*2); ctx.arc(-croc.w*.02,-croc.h*.28,7,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#111";
+    ctx.beginPath(); ctx.arc(-croc.w*.22,-croc.h*.28,3,0,Math.PI*2); ctx.arc(-croc.w*.02,-croc.h*.28,3,0,Math.PI*2); ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawFrog(){
+    ctx.save();
+    ctx.translate(frog.x, frog.y + Math.sin(performance.now()/210)*2);
+    if(frog.face<0) ctx.scale(-1,1);
+    const r = frogR();
+
+    if(frog.invuln>0 && Math.floor(performance.now()/90)%2===0){
+      ctx.globalAlpha = .35;
+    }
+
+    // shadow
+    ctx.fillStyle = "rgba(0,0,0,.18)";
+    ctx.beginPath(); ctx.ellipse(0,r*.62,r*.78,r*.2,0,0,Math.PI*2); ctx.fill();
+
+    // ninja headband
+    ctx.fillStyle = "#168c45";
+    ctx.beginPath(); ctx.ellipse(-r*.62,r*.38,r*.42,r*.18,-.45,0,Math.PI*2); ctx.ellipse(r*.62,r*.38,r*.42,r*.18,.45,0,Math.PI*2); ctx.fill();
+
+    const grad = ctx.createRadialGradient(-r*.22,-r*.26,4,0,0,r*1.1);
+    grad.addColorStop(0,"#8cff75"); grad.addColorStop(1,"#149047");
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.ellipse(0,0,r*.92,r*.78,0,0,Math.PI*2); ctx.fill();
+
+    // eyes
+    ctx.fillStyle = "#62e264";
+    ctx.beginPath(); ctx.arc(-r*.42,-r*.58,r*.28,0,Math.PI*2); ctx.arc(r*.42,-r*.58,r*.28,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(-r*.42,-r*.58,r*.18,0,Math.PI*2); ctx.arc(r*.42,-r*.58,r*.18,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#111";
+    ctx.beginPath(); ctx.arc(-r*.42,-r*.58,r*.075,0,Math.PI*2); ctx.arc(r*.42,-r*.58,r*.075,0,Math.PI*2); ctx.fill();
+
+    // red ninja band
+    ctx.strokeStyle = "#e83d4f";
+    ctx.lineWidth = Math.max(4,r*.16);
+    ctx.beginPath(); ctx.moveTo(-r*.65,-r*.36); ctx.lineTo(r*.65,-r*.36); ctx.stroke();
+    ctx.fillStyle = "#e83d4f";
+    ctx.beginPath(); ctx.moveTo(r*.55,-r*.38); ctx.lineTo(r*1.05,-r*.65); ctx.lineTo(r*.75,-r*.2); ctx.closePath(); ctx.fill();
+
+    // smile
+    ctx.strokeStyle = "#07592e";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(0,-r*.06,r*.34,.12*Math.PI,.88*Math.PI); ctx.stroke();
+
+    if(game.shield){
+      ctx.globalAlpha = .35;
+      ctx.strokeStyle = "#fff58a";
+      ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.arc(0,0,r*1.15,0,Math.PI*2); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+  }
+
+  function drawFireflies(){
+    ctx.save();
+    for(const f of game.fireflies){
+      const a = .25 + Math.sin(performance.now()/500 + f.phase)*.25;
+      ctx.fillStyle = `rgba(255,238,103,${a})`;
+      ctx.beginPath(); ctx.arc(f.x + Math.sin(performance.now()/1200+f.phase)*10, f.y, f.r,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawRain(){
+    ctx.save();
+    ctx.globalAlpha = .45;
+    ctx.strokeStyle = "#e9fbff";
+    ctx.lineWidth = 1.5;
+    for(const r of game.rainDrops){
+      ctx.beginPath(); ctx.moveTo(r.x,r.y); ctx.lineTo(r.x-5,r.y+r.len); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function splash(x,y,big){
+    const parts = [];
+    const count = big ? 18 : 10;
+    for(let i=0;i<count;i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = (big?110:70)+Math.random()*130;
+      parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-80,r:2+Math.random()*4});
+    }
+    game.splashes.push({life:650,parts});
+  }
+
+  function drawSplashes(){
+    ctx.save();
+    for(const s of game.splashes){
+      ctx.globalAlpha = Math.max(0,s.life/650);
+      ctx.fillStyle = "#ffffff";
+      for(const p of s.parts){
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  function confettiBurst(x,y,count){
+    for(let i=0;i<count;i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = 80+Math.random()*230;
+      game.confetti.push({
+        x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-150,
+        w:5+Math.random()*7,h:8+Math.random()*9,
+        life:900+Math.random()*900,
+        rot:Math.random()*6.28,spin:(Math.random()-.5)*9,
+        type:Math.floor(Math.random()*5)
+      });
+    }
+  }
+
+  function drawConfetti(){
+    const cols = ["#fff35a","#ff6fb4","#67f5ff","#9eff75","#ffffff"];
+    ctx.save();
+    for(const c of game.confetti){
+      ctx.globalAlpha = Math.max(0,Math.min(1,c.life/700));
+      ctx.fillStyle = cols[c.type];
+      ctx.translate(c.x,c.y);
+      ctx.rotate(c.rot);
+      ctx.fillRect(-c.w/2,-c.h/2,c.w,c.h);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  function roundRect(ctx,x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+
+  function audioUnlock(){
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if(audioCtx.state === "suspended") audioCtx.resume();
+  }
+
+  function beep(freq=440,dur=.12,type="sine",vol=.08,when=0){
+    if(muted || !audioCtx) return;
+    const t = audioCtx.currentTime + when;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq,t);
+    gain.gain.setValueAtTime(0,t);
+    gain.gain.linearRampToValueAtTime(vol,t+.01);
+    gain.gain.exponentialRampToValueAtTime(.001,t+dur);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(t); osc.stop(t+dur+.03);
+  }
+
+  function noise(dur=.18,vol=.07){
+    if(muted || !audioCtx) return;
+    const bufferSize = audioCtx.sampleRate*dur;
+    const buffer = audioCtx.createBuffer(1,bufferSize,audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for(let i=0;i<bufferSize;i++) data[i]=(Math.random()*2-1)*(1-i/bufferSize);
+    const src = audioCtx.createBufferSource();
+    const gain = audioCtx.createGain();
+    gain.gain.value = vol;
+    src.buffer = buffer;
+    src.connect(gain); gain.connect(audioCtx.destination);
+    src.start();
+  }
+
+  function playStart(){ beep(440,.1,"triangle"); beep(660,.12,"triangle",.08,.11); }
+  function playCorrect(){ beep(520,.08,"sine"); beep(780,.1,"sine",.08,.08); }
+  function playWrong(){ noise(.25,.08); beep(140,.18,"sawtooth",.04); }
+  function playCombo(){ beep(660,.08,"square"); beep(880,.08,"square",.07,.08); beep(1100,.08,"square",.07,.16); }
+  function playPower(){ beep(880,.1,"triangle"); beep(1320,.12,"triangle",.07,.1); }
+  function playWin(){ beep(523,.09,"triangle"); beep(659,.09,"triangle",.07,.09); beep(784,.14,"triangle",.07,.18); }
+  function playVictory(){ playWin(); beep(1046,.25,"triangle",.08,.32); }
+  function playShield(){ beep(350,.08,"triangle"); beep(260,.12,"triangle",.07,.08); }
+
+  function loop(now){
+    if(!last) last = now;
+    const dt = Math.min(34, now-last);
+    last = now;
+    if(game.started && !game.paused) update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  function bindKey(){
+    document.addEventListener("keydown", e => {
+      const k = e.key.toLowerCase();
+      if(["arrowup","w"].includes(k)){ e.preventDefault(); moveFrog(0,1); }
+      if(["arrowdown","s"].includes(k)){ e.preventDefault(); moveFrog(0,-1); }
+      if(["arrowleft","a"].includes(k)){ e.preventDefault(); moveFrog(-1,0); }
+      if(["arrowright","d"].includes(k)){ e.preventDefault(); moveFrog(1,0); }
+    });
+  }
+
+  function bindButton(id,dx,dy){
+    const el = document.getElementById(id);
+    const act = e => { e.preventDefault(); audioUnlock(); moveFrog(dx,dy); };
+    el.addEventListener("pointerdown",act);
+    el.addEventListener("touchstart",act,{passive:false});
+  }
+
+  startBtn.addEventListener("click", startGame);
+  howBtn.addEventListener("click", () => {
+    howText.style.display = howText.style.display === "none" ? "block" : "none";
+  });
+  muteBtn.addEventListener("click", () => {
+    muted = !muted;
+    muteBtn.textContent = muted ? "🔇 Muted" : "🔊 Sound";
+    if(!muted) { audioUnlock(); playCorrect(); }
+  });
+  teacherBtn.addEventListener("click", () => {
+    game.started = false;
+    screen.style.display = "grid";
+    screenTitle.textContent = "⚙ Teacher Mode";
+    screenText.innerHTML = "Adjust the practice settings, then restart the mission.";
+    startBtn.textContent = "Start Mission";
+  });
+
+  window.addEventListener("resize", resize);
+  bindKey();
+  bindButton("up",0,1);
+  bindButton("down",0,-1);
+  bindButton("left",-1,0);
+  bindButton("right",1,0);
+  resize();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
