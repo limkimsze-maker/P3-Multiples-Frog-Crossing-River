@@ -25,12 +25,24 @@
   }
   #wrap{
     position:relative;
-    width:min(100vw,1000px);
-    height:min(100vh,740px);
+    width:100vw;
+    height:100dvh;
+    max-width:1000px;
+    max-height:740px;
     overflow:hidden;
-    border-radius:20px;
+    border-radius:clamp(0px,2vw,20px);
     box-shadow:0 18px 45px rgba(0,0,0,.22);
     background:#8fe47a;
+  }
+  @supports not (height: 100dvh){
+    #wrap{height:100vh;}
+  }
+  @media(max-width:760px), (max-height:620px){
+    #wrap{
+      max-width:none;
+      max-height:none;
+      border-radius:0;
+    }
   }
   canvas{width:100%;height:100%;display:block}
   .glass{
@@ -114,14 +126,14 @@
   #controls{
     position:absolute;
     z-index:6;
-    left:50%;
-    bottom:12px;
-    transform:translateX(-50%);
+    right:10px;
+    top:50%;
+    transform:translateY(-50%);
     display:grid;
-    grid-template-columns:64px 64px 64px;
-    grid-template-rows:56px 56px;
-    gap:7px;
-    opacity:.92;
+    grid-template-columns:58px 58px 58px;
+    grid-template-rows:52px 52px 52px;
+    gap:6px;
+    opacity:.94;
   }
   .ctrl{
     border-radius:17px;
@@ -135,14 +147,20 @@
   }
   #up{grid-column:2;grid-row:1}
   #left{grid-column:1;grid-row:2}
-  #down{grid-column:2;grid-row:2}
+  #down{grid-column:2;grid-row:3}
   #right{grid-column:3;grid-row:2}
-  @media (min-width:760px){#controls{display:none}}
+  @media (min-width:900px) and (min-height:650px){#controls{display:none}}
   @media (max-height:600px){
     #hud{top:6px;left:6px;right:6px}
     #stats{min-width:160px}
     #topButtons{top:74px;right:6px}
-    #controls{bottom:6px;grid-template-columns:52px 52px 52px;grid-template-rows:46px 46px}
+    #controls{
+      right:6px;
+      grid-template-columns:48px 48px 48px;
+      grid-template-rows:42px 42px 42px;
+      gap:5px;
+    }
+    .ctrl{font-size:22px;border-radius:14px}
   }
   #screen{
     position:absolute;
@@ -262,9 +280,16 @@
     margin-top:8px;
   }
   @media(max-width:570px){
-    #hud{grid-template-columns:1fr}
-    #stats{text-align:center;min-width:0}
-    #topButtons{top:126px}
+    #hud{
+      grid-template-columns:1fr;
+      gap:5px;
+      left:6px;
+      right:6px;
+      top:6px;
+    }
+    #question{font-size:clamp(16px,5vw,24px);padding:6px 8px}
+    #stats{text-align:center;min-width:0;font-size:13px;padding:5px 8px}
+    #topButtons{top:102px;right:6px}
     .checks{grid-template-columns:repeat(4,1fr)}
     .pillSelect{grid-template-columns:repeat(2,1fr)}
     .rowSettings{grid-template-columns:1fr}
@@ -345,11 +370,11 @@
           </div>
 
           <div class="settingBox">
-            <label class="title">Help level</label>
-            <div class="pillSelect">
-              <label><input type="radio" name="glow" value="on" checked> Glow</label>
-              <label><input type="radio" name="glow" value="off"> Boss style</label>
-            </div>
+            <label class="title">Display</label>
+            <select id="displaySelect">
+              <option selected>Auto-fit screen</option>
+            </select>
+            <div class="tip">No answer glow is used. Pupils must identify the correct multiples themselves.</div>
           </div>
         </div>
       </div>
@@ -357,7 +382,7 @@
       <button class="primary" id="startBtn">Start Mission</button>
       <button class="secondary" id="howBtn">How to Play</button>
       <p class="tip" id="howText" style="display:none">
-        Use arrow keys, WASD, or the mobile buttons. Wait for a correct lotus leaf to float near the frog, then jump.
+        Use arrow keys, WASD, or the right-side mobile buttons. Decide which numbers are correct multiples, then jump.
         ⭐ gives bonus points, 🛡 gives a shield, 🪰 gives 1 life, and ⏱ slows the river.
       </p>
     </div>
@@ -403,7 +428,7 @@
     speedFactor:1,
     lives:3,
     mission:5,
-    glow:true
+    glow:false
   };
 
   let game = {
@@ -457,11 +482,11 @@
     makeAtmosphere();
   }
 
-  function riverTop(){ return H*0.145; }
-  function riverBottom(){ return H*0.86; }
+  function riverTop(){ return H < 560 ? H*0.17 : H*0.145; }
+  function riverBottom(){ return H < 560 ? H*0.84 : H*0.86; }
   function laneH(){ return (riverBottom()-riverTop())/laneCount; }
-  function leafR(){ return Math.max(31, Math.min(48, W*.046)); }
-  function frogR(){ return Math.max(21, Math.min(34, W*.034)); }
+  function leafR(){ return Math.max(34, Math.min(52, Math.min(W,H)*.067)); }
+  function frogR(){ return Math.max(28, Math.min(46, Math.min(W,H)*.058)); }
   function laneY(lane){
     if(lane < 0) return H*.925;
     if(lane >= laneCount) return H*.075;
@@ -486,7 +511,7 @@
     config.speedFactor = Number(speedSelect.value);
     config.lives = Number(livesSelect.value);
     config.mission = Number(missionSelect.value);
-    config.glow = document.querySelector('input[name="glow"]:checked').value === "on";
+    config.glow = false;
   }
 
   function chooseTarget(){
@@ -1060,12 +1085,6 @@
     ctx.translate(leaf.x, bobY+sinkOffset);
     ctx.rotate(Math.sin(leaf.wobble*.7)*.07);
 
-    if(config.glow && leaf.number % game.target === 0 && game.themeKey !== "boss"){
-      const pulse = .35 + Math.sin(performance.now()/280 + leaf.x*.01)*.2;
-      ctx.fillStyle = `rgba(255,235,94,${pulse})`;
-      ctx.beginPath(); ctx.ellipse(0,0,leaf.r*1.22,leaf.r*.86,0,0,Math.PI*2); ctx.fill();
-    }
-
     if(leaf.pulse>0){
       ctx.fillStyle = "rgba(255,255,255,.75)";
       ctx.beginPath(); ctx.ellipse(0,0,leaf.r*1.28,leaf.r*.9,0,0,Math.PI*2); ctx.fill();
@@ -1162,8 +1181,12 @@
     ctx.fillStyle = "#168c45";
     ctx.beginPath(); ctx.ellipse(-r*.62,r*.38,r*.42,r*.18,-.45,0,Math.PI*2); ctx.ellipse(r*.62,r*.38,r*.42,r*.18,.45,0,Math.PI*2); ctx.fill();
 
-    const grad = ctx.createRadialGradient(-r*.22,-r*.26,4,0,0,r*1.1);
-    grad.addColorStop(0,"#8cff75"); grad.addColorStop(1,"#149047");
+    ctx.strokeStyle = "rgba(255,255,255,.95)";
+    ctx.lineWidth = Math.max(4, r*.13);
+    ctx.beginPath(); ctx.ellipse(0,0,r*.98,r*.84,0,0,Math.PI*2); ctx.stroke();
+
+    const grad = ctx.createRadialGradient(-r*.25,-r*.28,4,0,0,r*1.15);
+    grad.addColorStop(0,"#b7ff76"); grad.addColorStop(.45,"#58ec63"); grad.addColorStop(1,"#0f8e43");
     ctx.fillStyle = grad;
     ctx.beginPath(); ctx.ellipse(0,0,r*.92,r*.78,0,0,Math.PI*2); ctx.fill();
 
