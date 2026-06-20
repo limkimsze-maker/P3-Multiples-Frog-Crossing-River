@@ -325,7 +325,7 @@
       <h1 id="screenTitle">🐸 Frog Ninja River Mission</h1>
       <p class="subtitle" id="screenText">
         Adventure Mode goes step by step from Multiples of 2 to Multiples of 12.
-        Teacher Mode lets you focus on one multiple without mixed multiples.
+        Teacher Mode lets you focus on one multiple. Every river row has reachable correct choices.
       </p>
 
       <div class="settings">
@@ -413,8 +413,8 @@
       <button class="primary" id="startBtn">Start Adventure</button>
       <button class="secondary" id="howBtn">How to Play</button>
       <p class="tip" id="howText" style="display:none">
-        Use arrow keys, WASD, or the right-side mobile buttons. Adventure goes from multiples of 2 to 12. Teacher Mode repeats one selected multiple.
-        ⭐ gives bonus points, 🛡 gives a shield, 🪰 gives 1 life, and ⏱ slows the river.
+        Use arrow keys, WASD, or the right-side mobile buttons. You may jump forward or sideways to another lotus leaf.
+        There will always be a correct lotus leaf to aim for. Wrong answers have crocodiles underneath. ⭐ gives bonus points, 🛡 gives a shield, 🪰 gives 1 life, and ⏱ slows the river.
       </p>
     </div>
   </div>
@@ -583,6 +583,101 @@
     return n;
   }
 
+  function makeDistinctCorrect(existingNumbers){
+    let n = makeNumber(true);
+    let guard = 0;
+    while(existingNumbers.has(n) && guard < 60){
+      n = makeNumber(true);
+      guard++;
+    }
+    existingNumbers.add(n);
+    return n;
+  }
+
+  function makeDistinctWrong(existingNumbers){
+    let n = makeNumber(false);
+    let guard = 0;
+    while(existingNumbers.has(n) && guard < 60){
+      n = makeNumber(false);
+      guard++;
+    }
+    existingNumbers.add(n);
+    return n;
+  }
+
+  function setLeafCorrect(leaf, existingNumbers){
+    leaf.correct = true;
+    leaf.crocUnder = false;
+    leaf.number = makeDistinctCorrect(existingNumbers);
+  }
+
+  function setLeafWrong(leaf, existingNumbers){
+    leaf.correct = false;
+    leaf.crocUnder = true;
+    leaf.power = null;
+    leaf.number = makeDistinctWrong(existingNumbers);
+  }
+
+  function guaranteeCorrectOptions(leaves, gap, existingNumbers){
+    // Make the river fair: every row has several correct options spread across the screen.
+    // Pupils still need to read the numbers, but they should not be trapped with only crocodiles.
+    const visibleLeft = -gap * 0.6;
+    const visibleRight = W + gap * 0.6;
+    const targetXs = [W * 0.24, W * 0.50, W * 0.76];
+
+    for(const targetX of targetXs){
+      let best = null;
+      let bestDist = Infinity;
+      for(const leaf of leaves){
+        if(leaf.x < visibleLeft || leaf.x > visibleRight) continue;
+        const d = Math.abs(leaf.x - targetX);
+        if(d < bestDist){
+          best = leaf;
+          bestDist = d;
+        }
+      }
+      if(best) setLeafCorrect(best, existingNumbers);
+    }
+
+    let correctVisible = leaves.filter(leaf =>
+      leaf.correct && leaf.x > visibleLeft && leaf.x < visibleRight
+    );
+
+    // If the random layout is awkward, force the nearest leaves to the centre to be correct.
+    if(correctVisible.length < 3){
+      const candidates = leaves
+        .filter(leaf => leaf.x > visibleLeft && leaf.x < visibleRight)
+        .sort((a,b) => Math.abs(a.x - W/2) - Math.abs(b.x - W/2));
+
+      for(const leaf of candidates){
+        if(correctVisible.length >= 3) break;
+        if(!leaf.correct){
+          setLeafCorrect(leaf, existingNumbers);
+          correctVisible.push(leaf);
+        }
+      }
+    }
+
+    // Avoid unfair clusters: if all correct leaves are too close, spread two more out.
+    correctVisible = leaves.filter(leaf => leaf.correct && leaf.x > visibleLeft && leaf.x < visibleRight);
+    const leftCorrect = correctVisible.some(leaf => leaf.x < W * 0.38);
+    const rightCorrect = correctVisible.some(leaf => leaf.x > W * 0.62);
+
+    if(!leftCorrect){
+      const left = leaves
+        .filter(leaf => leaf.x > visibleLeft && leaf.x < W * 0.45)
+        .sort((a,b) => Math.abs(a.x - W * 0.25) - Math.abs(b.x - W * 0.25))[0];
+      if(left) setLeafCorrect(left, existingNumbers);
+    }
+
+    if(!rightCorrect){
+      const right = leaves
+        .filter(leaf => leaf.x < visibleRight && leaf.x > W * 0.55)
+        .sort((a,b) => Math.abs(a.x - W * 0.75) - Math.abs(b.x - W * 0.75))[0];
+      if(right) setLeafCorrect(right, existingNumbers);
+    }
+  }
+
   function buildRows(){
     rows = [];
     const r = leafR();
@@ -598,6 +693,8 @@
       const leaves = [];
       let correctCount = 0;
 
+      const existingNumbers = new Set();
+
       for(let j=-2; j<count; j++){
         const correct = Math.random() < (game.themeKey==="boss" ? .42 : .52);
         if(correct) correctCount++;
@@ -609,39 +706,21 @@
         leaves.push({
           x:j*gap + offset,
           y, r,
-          number:makeNumber(correct),
+          number: correct ? makeDistinctCorrect(existingNumbers) : makeDistinctWrong(existingNumbers),
           power,
           usedPower:false,
           wobble:Math.random()*Math.PI*2,
           sink:0,
           pulse:0,
-          correct
+          correct,
+          crocUnder: !correct
         });
       }
 
-      while(correctCount < 2){
-        const pick = leaves[Math.floor(Math.random()*leaves.length)];
-        if(!pick.correct){
-          pick.correct = true;
-          pick.number = makeNumber(true);
-          correctCount++;
-        }
-      }
+      guaranteeCorrectOptions(leaves, gap, existingNumbers);
 
+      // Crocodiles are attached to wrong-answer leaves only, not random hazards.
       const crocs = [];
-      if(themes[game.themeKey].crocs){
-        const crocCount = game.themeKey === "boss" ? 2 : (lane % 2 === 0 ? 1 : 0);
-        for(let c=0; c<crocCount; c++){
-          crocs.push({
-            x: Math.random()*W + c*W*.45,
-            y: y + (Math.random()-.5)*8,
-            w: Math.max(112, Math.min(165, W*.15)),
-            h: Math.max(38, Math.min(58, W*.052)),
-            speed: speed * (0.58 + Math.random()*.18),
-            blink: Math.random()*1000
-          });
-        }
-      }
 
       rows.push({lane,y,speed,gap,leaves,crocs});
     }
@@ -862,6 +941,70 @@
     return null;
   }
 
+  function nearestLeafInLane(lane, fromX, dir){
+    if(lane < 0 || lane >= laneCount) return null;
+    const row = rows[lane];
+    if(!row) return null;
+
+    const minGap = leafR() * 0.55;
+    const maxGap = Math.max(leafR() * 4.6, W * 0.31);
+    let best = null;
+    let bestDist = Infinity;
+
+    for(const leaf of row.leaves){
+      if(leaf.sink > 850) continue;
+      const dist = leaf.x - fromX;
+      if(dir > 0 && dist <= minGap) continue;
+      if(dir < 0 && dist >= -minGap) continue;
+      const abs = Math.abs(dist);
+      if(abs < bestDist && abs <= maxGap){
+        best = leaf;
+        bestDist = abs;
+      }
+    }
+    return best;
+  }
+
+  function hasCorrectOptionInLane(lane, fromX){
+    if(lane < 0 || lane >= laneCount) return true;
+    const row = rows[lane];
+    if(!row) return true;
+
+    const reachable = Math.max(leafR() * 4.9, W * 0.34);
+    return row.leaves.some(leaf =>
+      leaf.correct &&
+      leaf.sink <= 850 &&
+      Math.abs(leaf.x - fromX) <= reachable &&
+      leaf.x > -leaf.r &&
+      leaf.x < W + leaf.r
+    );
+  }
+
+  function nudgeCorrectOptionIntoReach(lane, fromX){
+    // Safety net: if the river drift creates an unfair moment, gently bring
+    // one correct leaf into reach rather than leaving the pupil trapped.
+    if(lane < 0 || lane >= laneCount) return;
+    const row = rows[lane];
+    if(!row) return;
+
+    let correctLeaves = row.leaves.filter(leaf => leaf.correct && leaf.sink <= 850);
+    if(correctLeaves.length === 0){
+      const existingNumbers = new Set(row.leaves.map(leaf => leaf.number));
+      setLeafCorrect(row.leaves[0], existingNumbers);
+      correctLeaves = [row.leaves[0]];
+    }
+
+    const best = correctLeaves
+      .sort((a,b) => Math.abs(a.x - fromX) - Math.abs(b.x - fromX))[0];
+
+    const side = row.speed >= 0 ? -1 : 1;
+    const targetX = Math.max(leafR() * 1.8, Math.min(W - leafR() * 1.8, fromX + side * leafR() * 2.3));
+
+    if(best && Math.abs(best.x - fromX) > Math.max(leafR()*4.9, W*.34)){
+      best.x = targetX;
+    }
+  }
+
   function moveFrog(dx,dy){
     if(!game.started || game.paused || game.recovering || jumping || game.lives<=0) return;
 
@@ -871,9 +1014,29 @@
 
     let jumpDist = Math.max(74, W*.105);
     let nextX = frog.x + dx*jumpDist;
+    let nextY = laneY(nextLane);
+
+    // Sideways jump: target the nearest lotus leaf on the same row.
+    if(dy === 0 && dx !== 0 && frog.lane >= 0 && frog.lane < laneCount){
+      let sideLeaf = nearestLeafInLane(frog.lane, frog.x, dx);
+      // Keep the game fair: if there is a correct leaf in that direction, use it as the sideways target.
+      const row = rows[frog.lane];
+      const maxGap = Math.max(leafR() * 4.9, W * 0.34);
+      const correctSideLeaf = row.leaves
+        .filter(leaf => leaf.correct && leaf.sink <= 850)
+        .filter(leaf => dx > 0 ? leaf.x > frog.x + leafR()*.55 : leaf.x < frog.x - leafR()*.55)
+        .filter(leaf => Math.abs(leaf.x - frog.x) <= maxGap)
+        .sort((a,b) => Math.abs(a.x - frog.x) - Math.abs(b.x - frog.x))[0];
+      if(correctSideLeaf) sideLeaf = correctSideLeaf;
+
+      if(sideLeaf){
+        nextX = sideLeaf.x;
+        nextY = sideLeaf.y + Math.sin(sideLeaf.wobble)*3;
+      }
+    }
+
     nextX = Math.max(frogR(), Math.min(W-frogR(), nextX));
 
-    let nextY = laneY(nextLane);
     frog.face = dx;
     frog.targetX = nextX;
     frog.targetY = nextY;
@@ -897,7 +1060,7 @@
 
       if(leaf.number % game.target !== 0){
         leaf.sink = 1;
-        loseLife(`${leaf.number} is not a multiple of ${game.target}.`);
+        loseLife(`🐊 Crocodile! ${leaf.number} is not a multiple of ${game.target}.`);
         return;
       }
 
@@ -956,15 +1119,14 @@
         if(row.speed>0 && leaf.x - leaf.r > W + row.gap) leaf.x -= span;
         if(row.speed<0 && leaf.x + leaf.r < -row.gap) leaf.x += span;
       }
-      for(const croc of row.crocs){
-        croc.x += croc.speed * speedMod * dt/1000;
-        croc.blink += dt;
-        if(croc.speed>0 && croc.x > W+160) croc.x = -160;
-        if(croc.speed<0 && croc.x < -160) croc.x = W+160;
-      }
+
     }
 
     if(!game.recovering && !jumping && game.started && frog.lane>=0 && frog.lane<laneCount){
+      if(!hasCorrectOptionInLane(frog.lane, frog.x)){
+        nudgeCorrectOptionIntoReach(frog.lane, frog.x);
+      }
+
       if(frog.attached && frog.attached.sink <= 0){
         const row = rows[frog.lane];
         frog.x += row.speed * speedMod * dt/1000;
@@ -982,15 +1144,7 @@
       }
     }
 
-    if(!game.recovering){
-      for(const row of rows){
-        for(const croc of row.crocs){
-          if(frog.lane === row.lane && Math.abs(frog.x-croc.x)<croc.w*.45 && Math.abs(frog.y-croc.y)<croc.h*.9){
-            loseLife("Cute croc bump! Try another leaf.");
-          }
-        }
-      }
-    }
+
 
     for(const s of game.splashes){
       s.life -= dt;
@@ -1106,7 +1260,7 @@
       ctx.font = `950 ${Math.max(14,W*.018)}px system-ui`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("🐊 Crocodile River!", W*.58 + Math.min(250,W*.38)/2, H*.87 + 19);
+      ctx.fillText("🐊 Wrong answers!", W*.58 + Math.min(250,W*.38)/2, H*.87 + 19);
     }
 
     if(th.night) drawFireflies();
@@ -1143,8 +1297,9 @@
 
   function drawRows(th){
     for(const row of rows){
-      // crocodiles behind leaves
-      for(const croc of row.crocs) drawCroc(croc);
+      for(const leaf of row.leaves){
+        if(leaf.crocUnder && leaf.sink <= 850) drawCrocUnderLeaf(leaf);
+      }
       for(const leaf of row.leaves) drawLeaf(leaf, th);
     }
   }
@@ -1201,6 +1356,64 @@
     ctx.fillStyle = "#fff";
     ctx.strokeText(String(leaf.number), -3, 1);
     ctx.fillText(String(leaf.number), -3, 1);
+
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  function drawCrocUnderLeaf(leaf){
+    const bobY = leaf.y + Math.sin(leaf.wobble)*3;
+    const sinkOffset = leaf.sink > 0 ? Math.min(42, leaf.sink/18) : 0;
+    const alpha = leaf.sink > 0 ? Math.max(0,1-leaf.sink/900) : 1;
+    const r = leaf.r;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(leaf.x, bobY + sinkOffset + r*.48);
+
+    ctx.fillStyle = "rgba(0,0,0,.17)";
+    ctx.beginPath();
+    ctx.ellipse(0, r*.28, r*1.12, r*.34, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(255,255,255,.9)";
+    ctx.lineWidth = Math.max(3, r*.08);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r*1.08, r*.42, 0, 0, Math.PI*2);
+    ctx.stroke();
+
+    ctx.fillStyle = "#2d9849";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r*1.02, r*.38, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = "#277e3e";
+    ctx.beginPath();
+    ctx.ellipse(r*.58, 0, r*.46, r*.26, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(-r*.28, -r*.31, r*.13, 0, Math.PI*2);
+    ctx.arc(r*.04, -r*.31, r*.13, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = "#111";
+    ctx.beginPath();
+    ctx.arc(-r*.28, -r*.31, r*.055, 0, Math.PI*2);
+    ctx.arc(r*.04, -r*.31, r*.055, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = "#fff";
+    for(let i=0;i<4;i++){
+      const x = r*.42 + i*r*.12;
+      ctx.beginPath();
+      ctx.moveTo(x, -r*.12);
+      ctx.lineTo(x + r*.05, 0);
+      ctx.lineTo(x, r*.12);
+      ctx.closePath();
+      ctx.fill();
+    }
 
     ctx.restore();
     ctx.globalAlpha = 1;
